@@ -17,7 +17,7 @@ A CLI tool that automates the tedious process of manually uploading business exp
     - Proceed with parsing & upload
     - Or only parse and print (for debugging and testing)
 
-## Importa Automaticamente Spese in Fatture In Cloud 🇮🇹
+## Importa Automaticamente le spese in Fatture In Cloud 🇮🇹
 
 Uno strumento CLI che automatizza il palloso processo di caricamento manuale delle spese aziendali su Fatture In Cloud. Usa Claude.ai per estrarre le informazioni rilevanti dalle fatture PDF e le carica automaticamente come spese.
 
