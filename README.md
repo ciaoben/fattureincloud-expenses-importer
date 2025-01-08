@@ -5,7 +5,6 @@
   <a href="#importa-automaticamente-le-spese-in-fatture-in-cloud-"><strong>Importa Automaticamente le spese in Fatture In Cloud 🇮🇹</strong></a> ·
 </p>
 <br/>
-<br/>
 
 ## Invoice Parser for Fatture In Cloud 🇬🇧
 
