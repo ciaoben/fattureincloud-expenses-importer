@@ -1,11 +1,20 @@
 export const getTaxDeductibilityForExpense = (extractedData) => {
+    const vendorName = extractedData.vendor_name.toLowerCase();
     // electricity bills are 50% deductible
-    if (extractedData.description.includes("Octopus Energy")) {
+    if (vendorName.includes("octopus energy")) {
         return 50;
     }
 
     // rent is 50% deductible
-    if (extractedData.description.includes("AFFITTO")) {
+    if (vendorName.includes("affitto")) {
+        return 50;
+    }
+
+    if (vendorName.includes("eni plenitude")) {
+        return 50;
+    }
+
+    if (vendorName.includes("pulsee")) {
         return 50;
     }
 

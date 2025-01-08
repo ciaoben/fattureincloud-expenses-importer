@@ -140,15 +140,27 @@ export async function findSupplier(companyId, searchValue, searchField = "vat_nu
  * @returns {Promise<Object|null>} The created supplier or null if error
  */
 export async function createSupplier(companyId, supplierData) {
+    let payload = {};
+
+    for (const key in supplierData) {
+        if (supplierData[key] !== null) {
+            payload[key] = supplierData[key];
+        }
+    }
+
     const [error, response] = await safe(
         api.post(`/c/${companyId}/entities/suppliers`, {
-            data: supplierData,
+            data: payload,
         })
     );
 
     if (error) {
-        console.error("Error creating supplier:", error.response?.data || error.message);
-        throw error;
+        if (error.response?.status === 422) {
+            console.error("Error creating supplier:", error.response.data);
+        } else {
+            console.error("Error creating supplier:", error.response?.data || error.message);
+        }
+        throw new Error("Error creating supplier.");
     }
 
     return response.data.data;

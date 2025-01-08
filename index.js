@@ -131,6 +131,8 @@ async function processPDFWithClaude(pdfBuffer) {
         }));
     }
 
+    // console.log("parsed", parsed);
+
     return parsed;
 }
 
@@ -201,7 +203,7 @@ function detectCountryFromAddress(address, vatNumber) {
  */
 function formatReceivedDocumentData({ extractedData, supplier, paymentAccount, currency }) {
     const amountGross = extractedData.total_amount;
-    const amountVat = extractedData.vat_amount;
+    const amountVat = extractedData.vat_amount || 0;
 
     const paidDate = getPaymentDateForExpense(extractedData);
 
@@ -370,7 +372,10 @@ async function main() {
         // handle the supplier
         let supplier = null;
         if (executionType === "run") {
-            const country = detectCountryFromAddress(extractedData.vendor_address, extractedData.vat_number);
+            let country = extractedData.vendor_country;
+            if (!country) {
+                country = detectCountryFromAddress(extractedData.vendor_address, extractedData.vat_number);
+            }
 
             p.log.step("Checking supplier...");
             const [supplierError, supplierResult] = await safe(
@@ -382,7 +387,8 @@ async function main() {
             );
 
             if (supplierError) {
-                p.log.error("Error handling supplier:", supplierError);
+                console.log(supplierError.response);
+                console.log(JSON.stringify(supplierError.response.data, null, 8));
                 throw supplierError;
             }
             supplier = supplierResult.supplier;
@@ -442,7 +448,9 @@ async function main() {
         p.log.success(
             `File ${file} processed, expense created - ${expense.data.date} ${EXPENSE_DETAILS_URL}/${expense.data.id}`
         );
-        recap[file] = {
+
+        let truncatedFilename = file.length > 30 ? file.substring(0, 30) : file;
+        recap[truncatedFilename] = {
             date: expense.data.date,
             id: expense.data.id,
             url: `${EXPENSE_DETAILS_URL}/${expense.data.id}`,
@@ -455,4 +463,7 @@ async function main() {
     console.table(recap);
 }
 
-main().catch(console.error);
+main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+});

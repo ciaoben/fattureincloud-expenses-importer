@@ -4,6 +4,7 @@ Include these fields:
     total_amount (as number)
     vat_amount (as number, if present)
     vendor_name, vendor_address (if present)
+    vendor_country (in italian)
     vat_number (if present)
     currency (as ISO code like EUR, USD)
     itemized_expenses (as array with amount as number) 

@@ -17,5 +17,8 @@
     },
     "overrides": {
         "whatwg-url": "13.0.0"
+    },
+    "volta": {
+        "node": "22.9.0"
     }
 }

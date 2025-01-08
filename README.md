@@ -1,6 +1,5 @@
 <p align="center"><img width="700" alt="README header" src="https://github.com/user-attachments/assets/33f258aa-5751-46c2-844f-f04dc83b62b9" /></p>
 
-
 ## Invoice Parser for Fatture In Cloud 🇬🇧
 
 A CLI tool that automates the tedious process of manually uploading business expenses to Fatture In Cloud. It uses Claude.ai to extract relevant information from PDF invoices and automatically uploads them as business expenses.
@@ -16,6 +15,10 @@ A CLI tool that automates the tedious process of manually uploading business exp
 1. `npm install`
 2. Add your invoices to the directory `docs-to-import`
 3. Create an `.env` file based on `.env.example` and add your ANTHROPIC and Fatture in Cloud tokens
+
+    - [Get Fatture in Cloud Token](https://developers.fattureincloud.it/docs/authentication/manual-authentication)
+    - [Get anthropic api key](https://console.anthropic.com/settings/keys)
+
 4. Run `node --env-file=.env index.js`. It will ask if you want to:
     - Proceed with parsing & upload
     - Or only parse and print (for debugging and testing)
@@ -35,6 +38,8 @@ Uno strumento CLI che automatizza il palloso processo di caricamento manuale del
 1. `npm install`
 2. Aggiungi le tue fatture nella directory `docs-to-import`
 3. Crea un file `.env` basato su `.env.example` e aggiungi i tuoi token ANTHROPIC e Fatture in Cloud
+    - [Genera Token per Fatture in Cloud](https://developers.fattureincloud.it/docs/authentication/manual-authentication)
+    - [Genera chiave API anthropic](https://console.anthropic.com/settings/keys)
 4. Esegui `node --env-file=.env index.js`. Ti chiederà se vuoi:
     - Procedere con parsing e caricamento
     - O solo parsing e stampa (per debug e test)
