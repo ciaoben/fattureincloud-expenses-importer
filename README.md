@@ -38,8 +38,8 @@ Uno strumento CLI che automatizza il palloso processo di caricamento manuale del
 1. `npm install`
 2. Aggiungi le tue fatture nella directory `docs-to-import`
 3. Crea un file `.env` basato su `.env.example` e aggiungi i tuoi token ANTHROPIC e Fatture in Cloud
-    - [Genera Token per Fatture in Cloud](https://developers.fattureincloud.it/docs/authentication/manual-authentication){:target="\_blank"}
-    - [Genera chiave API anthropic](https://console.anthropic.com/settings/keys){:target="\_blank"}
+    - [Genera Token per Fatture in Cloud](https://developers.fattureincloud.it/docs/authentication/manual-authentication){:target="_blank"}
+    - [Genera chiave API anthropic](https://console.anthropic.com/settings/keys){:target="_blank"}
 4. Esegui `node --env-file=.env index.js`. Ti chiederà se vuoi:
     - Procedere con parsing e caricamento
     - O solo parsing e stampa (per debug e test)
