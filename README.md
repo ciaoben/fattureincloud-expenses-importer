@@ -27,7 +27,7 @@ Uno strumento CLI che automatizza il palloso processo di caricamento manuale del
 
 -   Node.js >= 22
 
-### Come eseguire
+### Come usare questa repo
 
 1. `npm install`
 2. Aggiungi le tue fatture nella directory `docs-to-import`
