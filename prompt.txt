@@ -1,0 +1,18 @@
+Extract invoice data and return ONLY a JSON object. 
+Include these fields: 
+    date (in DD.MM.YYYY format)
+    total_amount (as number)
+    vat_amount (as number, if present)
+    vendor_name, vendor_address (if present)
+    vat_number (if present)
+    currency (as ISO code like EUR, USD)
+    itemized_expenses (as array with amount as number) 
+    
+and ALWAYS create a description with this format: "{service description in max 3 words in ITALIAN}". Use null for missing fields. 
+    
+For vendor_address, include the complete address if found in the document. 
+
+SPECIAL IMPORTANT RULES:
+- if it is a wire transfer to this IBAN like this IT34Y....43863567, it is my rent. In this case the fields vat_amount is 0, vendor_name: AFFITTO VIA APORTI, vat_number: null, itemized_expenses: null, description: "AFFITTO {mese}"
+
+Start your response with { and end with }. 
