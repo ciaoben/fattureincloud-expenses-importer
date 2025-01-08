@@ -1,5 +1,9 @@
 <p align="center"><img width="700" alt="README header" src="https://github.com/user-attachments/assets/33f258aa-5751-46c2-844f-f04dc83b62b9" /></p>
 
+## [Invoice Parser for Fatture In Cloud 🇬🇧](#invoice-parser-for-fatture-in-cloud-)
+
+## [Importa Automaticamente le spese in Fatture In Cloud 🇮🇹](#importa-automaticamente-le-spese-in-fatture-in-cloud-)
+
 ## Invoice Parser for Fatture In Cloud 🇬🇧
 
 A CLI tool that automates the tedious process of manually uploading business expenses to Fatture In Cloud. It uses Claude.ai to extract relevant information from PDF invoices and automatically uploads them as business expenses.
