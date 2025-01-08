@@ -21,7 +21,7 @@ A CLI tool that automates the tedious process of manually uploading business exp
 
 Uno strumento CLI che automatizza il palloso processo di caricamento manuale delle spese aziendali su Fatture In Cloud. Usa Claude.ai per estrarre le informazioni rilevanti dalle fatture PDF e le carica automaticamente come spese.
 
-⚠️ Non è assolutamente un software completo. Copre a male pena il mio specifico caso d'uso da freelancer, ma funziona abbastanza bene da essere un buon punto di partenza per altri.
+⚠️ Non è assolutamente un software completo. Copre a malapena il mio specifico caso d'uso da freelancer, ma funziona abbastanza bene da essere un buon punto di partenza per altri.
 
 ### Prerequisiti
 
