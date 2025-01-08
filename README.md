@@ -1,8 +1,9 @@
 <p align="center"><img width="700" alt="README header" src="https://github.com/user-attachments/assets/33f258aa-5751-46c2-844f-f04dc83b62b9" /></p>
 
-## [Invoice Parser for Fatture In Cloud 🇬🇧](#invoice-parser-for-fatture-in-cloud-)
-
-## [Importa Automaticamente le spese in Fatture In Cloud 🇮🇹](#importa-automaticamente-le-spese-in-fatture-in-cloud-)
+<p align="center">
+  <a href="#invoice-parser-for-fatture-in-cloud-"><strong>Invoice Parser for Fatture In Cloud 🇬🇧</strong></a> ·
+  <a href="#importa-automaticamente-le-spese-in-fatture-in-cloud-"><strong>Importa Automaticamente le spese in Fatture In Cloud 🇮🇹</strong></a> ·
+</p>
 
 ## Invoice Parser for Fatture In Cloud 🇬🇧
 
