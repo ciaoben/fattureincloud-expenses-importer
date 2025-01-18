@@ -22,7 +22,22 @@ export const getTaxDeductibilityForExpense = (extractedData) => {
 };
 
 export const getPaymentAccountForExpense = (extractedData) => {
-    if (extractedData.description.includes("Octopus Energy")) {
+    const description = extractedData.description.toLowerCase();
+    const vendorName = extractedData.vendor_name.toLowerCase();
+
+    if (vendorName.includes("octopus energy")) {
+        return "Banco Popolare";
+    }
+
+    if (description.includes("affitto")) {
+        return "Banco Popolare";
+    }
+
+    if (description.includes("pulsee")) {
+        return "Banco Popolare";
+    }
+
+    if (description.includes("eni plenitude")) {
         return "Banco Popolare";
     }
 
