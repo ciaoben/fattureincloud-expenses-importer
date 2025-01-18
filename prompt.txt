@@ -9,8 +9,8 @@ Include these fields:
     currency (as ISO code like EUR, USD)
     itemized_expenses (as array with amount as number) 
     
-and ALWAYS create a description with this format: "{service description in max 3 words in ITALIAN}". Use null for missing fields. 
-    
+and ALWAYS create a description with this format: "{service description in max 3 words in ITALIAN} - {"extraeu" if the invoice is not from a country of the EU}". Use null for missing fields.
+ 
 For vendor_address, include the complete address if found in the document. 
 
 SPECIAL IMPORTANT RULES:
