@@ -4,6 +4,7 @@ import path from "path";
 import { parse, format } from "date-fns";
 import {
     getTaxDeductibilityForExpense,
+    normalizeDescriptionForExpense,
     getPaymentAccountForExpense,
     getPaymentDateForExpense,
     pickCompany,
@@ -129,6 +130,11 @@ async function processPDFWithClaude(pdfBuffer) {
                 : null,
             period_end: item.period ? parse(item.period.split(" - ")[1], "dd.MM.yyyy", new Date()).toISOString() : null,
         }));
+    }
+
+    parsed.description = normalizeDescriptionForExpense(parsed);
+    if (!parsed.description || typeof parsed.description !== "string") {
+        parsed.description = "SPESA";
     }
 
     // console.log("parsed", parsed);

@@ -10,10 +10,21 @@ Include these fields:
     itemized_expenses (as array with amount as number) 
     
 and ALWAYS create a description with this format: "{service description in max 3 words in ITALIAN} - {"extraeu" if the invoice is not from a country of the EU}". Use null for missing fields.
+- for utility bills, use canonical names:
+    - electricity: "BOLLETTA LUCE"
+    - gas: "BOLLETTA GAS"
+- description is REQUIRED and must never be null, empty, or missing.
+- if a specific service label is not explicit, infer a concrete description from vendor + document type.
+- keep description strict: max 3 words in Italian, then add "- extraeu" only when applicable.
+- avoid generic labels like "spesa", "servizi", or "varie" unless there is no other possible interpretation.
+- before returning JSON, validate that description is a non-empty string. If not, regenerate it.
  
 For vendor_address, include the complete address if found in the document. 
 
 SPECIAL IMPORTANT RULES:
-- if it is a wire transfer to this IBAN like this IT34Y....43863567, it is my rent. In this case the fields vat_amount is 0, vendor_name: AFFITTO VIA APORTI, vat_number: null, itemized_expenses: null, description: "AFFITTO {mese}"
+- if it is a bank transfer receipt (for example Banco BPM) and in details/causale there is "AFFITTO" (for example "AFFITTO APT VIA ..."), treat it as rent.
+- rent hints can include one or more of these: the old IBAN IT34Y....43863567, or the new transfer details like beneficiary "FRANCESCA FERRARI", address "VIA SALVO DACQUISTO 17", or IBAN "IT11A0306911200100000900775".
+- when it is rent, force these fields: vat_amount: 0, vat_number: null, itemized_expenses: null.
+- when it is rent, set vendor_name to: "AFFITTO VIA SALVO DACQUISTO" and description to: "AFFITTO {mese}".
 
 Start your response with { and end with }. 
