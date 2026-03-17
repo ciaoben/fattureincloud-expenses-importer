@@ -75,6 +75,23 @@ export async function createReceivedDocument(companyId, documentData) {
 }
 
 /**
+ * Deletes a received document by ID
+ * @param {string} companyId - The company ID
+ * @param {number|string} documentId - The received document ID
+ * @returns {Promise<Object>} API response payload
+ */
+export async function deleteReceivedDocument(companyId, documentId) {
+    const [error, response] = await safe(api.delete(`/c/${companyId}/received_documents/${documentId}`));
+
+    if (error) {
+        console.error("Error deleting received document:", error.response?.data || error.message);
+        throw error;
+    }
+
+    return response.data;
+}
+
+/**
  * Uploads a document attachment and returns the attachment token
  * @param {string} companyId - The company ID
  * @param {Buffer} fileBuffer - The file buffer to upload

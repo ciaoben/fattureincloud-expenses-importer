@@ -29,7 +29,9 @@ A CLI tool that automates the tedious process of manually uploading business exp
 
 4. Run `node --env-file=.env index.js`. It will ask if you want to:
     - Proceed with parsing & upload
-    - Or only parse and print (for debugging and testing)
+    - Only parse and print (for debugging and testing)
+    - Rollback one or more previously created expenses
+5. On each successful upload run, the tool stores rollback metadata in `rollback-history.json` (or `ROLLBACK_HISTORY_FILE` from `.env`) so you can delete the expense from Fatture in Cloud and restore the file from `docs-to-import/done` back to its original folder.
 
 ## Importa Automaticamente le spese in Fatture In Cloud 🇮🇹
 
@@ -52,7 +54,9 @@ Uno strumento CLI che automatizza il palloso processo di caricamento manuale del
     - Usa `LLM_PROVIDER=anthropic` (default) oppure `LLM_PROVIDER=gemini`
 4. Esegui `node --env-file=.env index.js`. Ti chiederà se vuoi:
     - Procedere con parsing e caricamento
-    - O solo parsing e stampa (per debug e test)
+    - Solo parsing e stampa (per debug e test)
+    - Fare rollback di una o più spese create in precedenza
+5. Dopo ogni creazione andata a buon fine, lo script salva i dati di rollback in `rollback-history.json` (oppure nel file indicato da `ROLLBACK_HISTORY_FILE` nel `.env`) per poter eliminare la spesa da Fatture in Cloud e ripristinare il file da `docs-to-import/done` al percorso originale.
 
 ## License / Licenza
 

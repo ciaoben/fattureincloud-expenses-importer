@@ -16,6 +16,7 @@ import { fetchModelPricesById, toLlmPriceModelId } from "./llm/pricing.js";
 import {
     listCompanies,
     createReceivedDocument,
+    deleteReceivedDocument,
     uploadAttachment,
     getOrCreateSupplier,
     previewSupplierResolution,
@@ -25,6 +26,7 @@ import {
 
 const EXPENSE_DETAILS_URL = "https://secure.fattureincloud.it/expenses/view";
 const RUN_LOG_FILE = process.env.RUN_LOG_FILE || "RUN_LOG.md";
+const ROLLBACK_HISTORY_FILE = process.env.ROLLBACK_HISTORY_FILE || "rollback-history.json";
 
 function truncateFilename(file) {
     return file.length > 30 ? file.substring(0, 30) : file;
@@ -180,6 +182,275 @@ async function appendRunLog({ executionType, activeProvider, filesFound, recap, 
     const [appendError] = await safe(fs.appendFile(logFilePath, lines.join("\n")));
     if (appendError) {
         throw appendError;
+    }
+}
+
+function createEmptyLlmRecap() {
+    return {
+        pricingFetchError: null,
+        missingModelIds: [],
+        rowsWithCosts: [],
+        totals: {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            input_cost_usd: 0,
+            output_cost_usd: 0,
+            total_cost_usd: 0,
+        },
+        totalsByProviderModel: [],
+    };
+}
+
+async function loadRollbackHistory(historyFilePath) {
+    const [readError, content] = await safe(fs.readFile(historyFilePath, "utf-8"));
+    if (readError) {
+        if (readError.code === "ENOENT") {
+            return [];
+        }
+        throw readError;
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(content);
+    } catch (error) {
+        throw new Error(`Invalid JSON in rollback history file: ${historyFilePath}`);
+    }
+
+    if (Array.isArray(parsed)) {
+        return parsed;
+    }
+    if (parsed && Array.isArray(parsed.entries)) {
+        return parsed.entries;
+    }
+
+    throw new Error(`Rollback history file must contain an array: ${historyFilePath}`);
+}
+
+async function saveRollbackHistory(historyFilePath, entries) {
+    const directoryPath = path.dirname(historyFilePath);
+    const [mkdirError] = await safe(fs.mkdir(directoryPath, { recursive: true }));
+    if (mkdirError && directoryPath !== ".") {
+        throw mkdirError;
+    }
+
+    const [writeError] = await safe(fs.writeFile(historyFilePath, `${JSON.stringify(entries, null, 2)}\n`, "utf-8"));
+    if (writeError) {
+        throw writeError;
+    }
+}
+
+async function appendRollbackHistoryEntry(historyFilePath, entry) {
+    const entries = await loadRollbackHistory(historyFilePath);
+    entries.push(entry);
+    await saveRollbackHistory(historyFilePath, entries);
+}
+
+function createRollbackHistoryEntryId() {
+    return `rb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createRollbackRecapRow(entry, status) {
+    const expenseId = entry.received_document_id || "-";
+    return {
+        file: truncateFilename(entry.file_name || "-"),
+        date: entry.date || "-",
+        description: entry.description || "ROLLBACK",
+        extraeu: isExtraEuDescription(entry.description),
+        amount_gross: entry.amount_gross ?? "-",
+        tax_deductibility: entry.tax_deductibility ?? "-",
+        entity_status: entry.entity_status || "-",
+        entity_name: entry.entity_name || "-",
+        entity_id: entry.entity_id || "-",
+        status,
+        id: expenseId,
+        url: expenseId === "-" ? "-" : `${EXPENSE_DETAILS_URL}/${expenseId}`,
+    };
+}
+
+function rollbackOptionLabel(entry) {
+    const amount = entry.amount_gross ?? "-";
+    const description = entry.description || "-";
+    return `${entry.file_name || "-"} | id:${entry.received_document_id || "-"} | ${description} | ${amount}`;
+}
+
+function toErrorText(error) {
+    if (!error) {
+        return "unknown_error";
+    }
+    return error.response?.data?.error || error.message || String(error);
+}
+
+async function runRollbackMode({ historyFilePath, runLogPath, activeProvider }) {
+    const history = await loadRollbackHistory(historyFilePath);
+
+    const rollbackCandidates = history
+        .map((entry, historyIndex) => ({
+            entry,
+            historyIndex,
+        }))
+        .filter(({ entry }) => {
+            const status = entry?.status || "created";
+            const canRollbackStatus = status === "created" || status === "rollback_partial";
+            return canRollbackStatus && entry?.company_id && entry?.received_document_id;
+        });
+
+    if (rollbackCandidates.length === 0) {
+        p.log.info(`No rollback candidates found in ${historyFilePath}`);
+        return;
+    }
+
+    p.log.info(`Rollback history: ${historyFilePath}`);
+
+    const selectedHistoryIndexes = await p.multiselect({
+        message: "Select one or more expenses to rollback",
+        options: rollbackCandidates.map(({ entry, historyIndex }) => ({
+            value: historyIndex,
+            label: rollbackOptionLabel(entry),
+        })),
+        required: true,
+    });
+
+    if (p.isCancel(selectedHistoryIndexes)) {
+        p.log.error("Operation cancelled.");
+        process.exit(0);
+    }
+
+    if (!selectedHistoryIndexes || selectedHistoryIndexes.length === 0) {
+        p.log.warn("No expenses selected for rollback.");
+        return;
+    }
+
+    const confirmed = await p.confirm({
+        message: `Confirm rollback of ${selectedHistoryIndexes.length} expense(s)?`,
+        active: "Yes, rollback",
+        inactive: "No",
+    });
+
+    if (p.isCancel(confirmed) || !confirmed) {
+        p.log.error("Operation cancelled.");
+        process.exit(0);
+    }
+
+    const rollbackRecap = [];
+    let successCount = 0;
+    let partialCount = 0;
+    let deleteSuccessCount = 0;
+    let restoreSuccessCount = 0;
+
+    for (const historyIndex of selectedHistoryIndexes) {
+        const entry = history[historyIndex];
+        if (!entry) {
+            continue;
+        }
+
+        const errors = [];
+        let remoteDeleted = false;
+        let fileRestored = false;
+
+        const [deleteError] = await safe(deleteReceivedDocument(entry.company_id, entry.received_document_id));
+        if (deleteError) {
+            if (deleteError.response?.status === 404) {
+                // Already deleted remotely in a previous attempt.
+                remoteDeleted = true;
+                deleteSuccessCount += 1;
+            } else {
+                errors.push(`delete: ${toErrorText(deleteError)}`);
+            }
+        } else {
+            remoteDeleted = true;
+            deleteSuccessCount += 1;
+        }
+
+        const sourcePath = entry.source_path ? path.resolve(entry.source_path) : null;
+        const donePath = entry.done_path ? path.resolve(entry.done_path) : null;
+
+        if (!sourcePath || !donePath) {
+            errors.push("restore: missing source_path or done_path in history");
+        } else {
+            const [doneAccessError] = await safe(fs.access(donePath));
+            if (doneAccessError) {
+                errors.push(`restore: done file not accessible (${donePath})`);
+            } else {
+                const [sourceAccessError] = await safe(fs.access(sourcePath));
+                if (!sourceAccessError) {
+                    errors.push(`restore: source file already exists (${sourcePath})`);
+                } else if (sourceAccessError.code !== "ENOENT") {
+                    errors.push(`restore: source file not accessible (${sourcePath})`);
+                } else {
+                    const [mkdirError] = await safe(fs.mkdir(path.dirname(sourcePath), { recursive: true }));
+                    if (mkdirError) {
+                        errors.push(`restore: unable to create source dir (${toErrorText(mkdirError)})`);
+                    } else {
+                        const [restoreError] = await safe(fs.rename(donePath, sourcePath));
+                        if (restoreError) {
+                            errors.push(`restore: ${toErrorText(restoreError)}`);
+                        } else {
+                            fileRestored = true;
+                            restoreSuccessCount += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        const nowIso = new Date().toISOString();
+        const isSuccess = remoteDeleted && fileRestored;
+        const newStatus = isSuccess ? "rolled_back" : "rollback_partial";
+        const rollbackEvent = {
+            at: nowIso,
+            action: "rollback",
+            remote_deleted: remoteDeleted,
+            file_restored: fileRestored,
+            errors,
+        };
+        const previousEvents = Array.isArray(entry.rollback_events) ? entry.rollback_events : [];
+
+        history[historyIndex] = {
+            ...entry,
+            status: newStatus,
+            updated_at: nowIso,
+            rollback_events: [...previousEvents, rollbackEvent],
+        };
+
+        if (isSuccess) {
+            successCount += 1;
+            p.log.success(`Rolled back ${entry.file_name} [expense id: ${entry.received_document_id}]`);
+        } else {
+            partialCount += 1;
+            p.log.warn(
+                `Rollback partial for ${entry.file_name} [expense id: ${entry.received_document_id}] - ${errors.join(
+                    "; "
+                )}`
+            );
+        }
+
+        rollbackRecap.push(createRollbackRecapRow(history[historyIndex], isSuccess ? "rolled-back" : "rollback-partial"));
+    }
+
+    await saveRollbackHistory(historyFilePath, history);
+
+    console.table(rollbackRecap);
+    p.log.info(
+        `Rollback complete: success ${successCount}, partial ${partialCount}, remote deleted ${deleteSuccessCount}, files restored ${restoreSuccessCount}`
+    );
+
+    const [logError] = await safe(
+        appendRunLog({
+            executionType: "rollback",
+            activeProvider,
+            filesFound: selectedHistoryIndexes.length,
+            recap: rollbackRecap,
+            llmRecap: createEmptyLlmRecap(),
+            logFilePath: runLogPath,
+        })
+    );
+
+    if (logError) {
+        p.log.warn(`Unable to append run log at ${runLogPath}: ${logError.message || String(logError)}`);
+    } else {
+        p.log.info(`Run log updated: ${runLogPath}`);
     }
 }
 
@@ -515,6 +786,7 @@ async function main() {
     const DIR = process.env.DIR || "docs-to-import";
     const doneDirectory = path.join(DIR, "done");
     const runLogPath = path.resolve(RUN_LOG_FILE);
+    const rollbackHistoryPath = path.resolve(ROLLBACK_HISTORY_FILE);
     const activeProvider = getActiveProvider();
 
     const recap = [];
@@ -527,12 +799,22 @@ async function main() {
         options: [
             { value: "run", label: "Esegui" },
             { value: "dry", label: "Solo stampa (dry run)" },
+            { value: "rollback", label: "Rollback spese create" },
         ],
     });
 
     if (p.isCancel(executionType)) {
         p.log.error("Operation cancelled.");
         process.exit(0);
+    }
+
+    if (executionType === "rollback") {
+        await runRollbackMode({
+            historyFilePath: rollbackHistoryPath,
+            runLogPath,
+            activeProvider,
+        });
+        return;
     }
 
     const s = p.spinner();
@@ -769,6 +1051,34 @@ async function main() {
         recapRow.status = "created";
         recapRow.id = expense.data.id;
         recapRow.url = `${EXPENSE_DETAILS_URL}/${expense.data.id}`;
+
+        const rollbackEntry = {
+            rollback_entry_id: createRollbackHistoryEntryId(),
+            status: "created",
+            created_at: new Date().toISOString(),
+            company_id: companyId,
+            received_document_id: expense.data.id,
+            file_name: file,
+            source_path: path.resolve(filePath),
+            done_path: path.resolve(donePath),
+            date: expenseData.date,
+            description: expenseData.description,
+            amount_gross: expenseData.amount_gross,
+            tax_deductibility: expenseData.tax_deductibility,
+            entity_status: entityStatus,
+            entity_name: entityName,
+            entity_id: entityId,
+            rollback_events: [],
+        };
+
+        const [historyError] = await safe(appendRollbackHistoryEntry(rollbackHistoryPath, rollbackEntry));
+        if (historyError) {
+            p.log.warn(
+                `Expense created but rollback history was not updated (${rollbackHistoryPath}): ${
+                    historyError.message || String(historyError)
+                }`
+            );
+        }
     }
 
     s.stop(`All ${files.length} files processed`);
