@@ -166,6 +166,57 @@ export async function createSupplier(companyId, supplierData) {
     return response.data.data;
 }
 
+async function resolveSupplier(companyId, supplierDetails, { createIfMissing = true } = {}) {
+    let result = {
+        new: false,
+        supplier: null,
+        match: null,
+        would_create: false,
+    };
+
+    if (supplierDetails.vat_number) {
+        const [vatError, vatSupplier] = await safe(findSupplier(companyId, supplierDetails.vat_number, "vat_number"));
+        if (vatError) {
+            console.error("Error finding supplier by VAT:", vatError);
+            throw vatError;
+        }
+        if (vatSupplier) {
+            result.supplier = vatSupplier;
+            result.match = "vat";
+            return result;
+        }
+    }
+
+    if (supplierDetails.name) {
+        const [nameError, nameSupplier] = await safe(findSupplier(companyId, supplierDetails.name, "name"));
+        if (nameError) {
+            console.error("Error finding supplier by name:", nameError);
+            throw nameError;
+        }
+        if (nameSupplier) {
+            result.supplier = nameSupplier;
+            result.match = "name";
+            return result;
+        }
+    }
+
+    if (!createIfMissing) {
+        result.would_create = true;
+        return result;
+    }
+
+    const [createError, newSupplier] = await safe(createSupplier(companyId, supplierDetails));
+    if (createError) {
+        console.error("Error creating supplier:", createError);
+        throw createError;
+    }
+
+    result.new = true;
+    result.match = "created";
+    result.supplier = newSupplier;
+    return result;
+}
+
 /**
  * Gets an existing supplier or creates a new one
  * @param {string} companyId - The ID of the company
@@ -175,37 +226,17 @@ export async function createSupplier(companyId, supplierData) {
  * @returns {Promise<Object>} {new: true, supplier: supplier} if a new supplier was created
  */
 export async function getOrCreateSupplier(companyId, supplierDetails) {
-    let result = { new: false, supplier: null };
+    return resolveSupplier(companyId, supplierDetails, { createIfMissing: true });
+}
 
-    if (supplierDetails.vat_number) {
-        const [vatError, vatSupplier] = await safe(findSupplier(companyId, supplierDetails.vat_number, "vat_number"));
-        if (vatError) {
-            console.error("Error finding supplier by VAT:", vatError);
-            throw vatError;
-        }
-        result.supplier = vatSupplier;
-    }
-
-    if (!result.supplier && supplierDetails.name) {
-        const [nameError, nameSupplier] = await safe(findSupplier(companyId, supplierDetails.name, "name"));
-        if (nameError) {
-            console.error("Error finding supplier by name:", nameError);
-            throw nameError;
-        }
-        result.supplier = nameSupplier;
-    }
-
-    if (!result.supplier) {
-        const [createError, newSupplier] = await safe(createSupplier(companyId, supplierDetails));
-        if (createError) {
-            console.error("Error creating supplier:", createError);
-            throw createError;
-        }
-        result.new = true;
-        result.supplier = newSupplier;
-    }
-
-    return result;
+/**
+ * Resolves supplier in read-only mode, without creating a new supplier
+ * @param {string} companyId - The ID of the company
+ * @param {Object} supplierDetails - The supplier details
+ * @returns {Promise<Object>} {supplier, match, would_create}
+ */
+export async function previewSupplierResolution(companyId, supplierDetails) {
+    return resolveSupplier(companyId, supplierDetails, { createIfMissing: false });
 }
 
 /**
